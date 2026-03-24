@@ -59,6 +59,13 @@ async function getValidToken() {
         client_secret: settings.apiSecret
       })
     });
+
+    if (!res.ok) {
+      const errText = await res.text();
+      console.error("Token API Error Status:", res.status, errText);
+      return null;
+    }
+
     const data = await res.json();
     if (data.access_token) {
       token = data.access_token;
@@ -95,12 +102,21 @@ async function refreshAllData() {
     const locsRes = await fetch(`https://api.intra.42.fr/v2/users/${username}/locations?range[begin_at]=${start},${end}&per_page=100`, {
       headers: { 'Authorization': `Bearer ${currentToken}` }
     });
+    if (!locsRes.ok) {
+      throw new Error(`Failed to fetch logtime: ${locsRes.status} ${await locsRes.text()}`);
+    }
     const locs = await locsRes.json();
+
+    // Sleep gently to avoid hitting rate limit
+    await new Promise(r => setTimeout(r, 600));
     
     // 2. Fetch Stats
     const statsRes = await fetch(`https://api.intra.42.fr/v2/users/${username}`, {
       headers: { 'Authorization': `Bearer ${currentToken}` }
     });
+    if (!statsRes.ok) {
+      throw new Error(`Failed to fetch stats: ${statsRes.status} ${await statsRes.text()}`);
+    }
     const stats = await statsRes.json();
     
     // Load old cache to fallback if API is rate limited
@@ -138,11 +154,15 @@ async function refreshAllData() {
             const friendProfileRes = await fetch(`https://api.intra.42.fr/v2/users/${friend}`, {
               headers: { 'Authorization': `Bearer ${currentToken}` }
             });
-            const friendProfile = await friendProfileRes.json();
-            if (friendProfile && friendProfile.image && friendProfile.image.versions && friendProfile.image.versions.small) {
-              avatarUrl = friendProfile.image.versions.small;
-            } else if (friendProfile && friendProfile.image && friendProfile.image.link) {
-              avatarUrl = friendProfile.image.link;
+            if (!friendProfileRes.ok) {
+              console.warn(`Could not fetch profile for ${friend}: ${friendProfileRes.status} ${await friendProfileRes.text()}`);
+            } else {
+              const friendProfile = await friendProfileRes.json();
+              if (friendProfile && friendProfile.image && friendProfile.image.versions && friendProfile.image.versions.small) {
+                avatarUrl = friendProfile.image.versions.small;
+              } else if (friendProfile && friendProfile.image && friendProfile.image.link) {
+                avatarUrl = friendProfile.image.link;
+              }
             }
           } catch(e) { console.warn("Error fetching friend profile info", friend); }
 
