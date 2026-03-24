@@ -49,4 +49,4 @@ Pour que l'extension puisse récupérer tes informations au réseau 42, tu dois 
 - **Toutes tes données (clés, etc) sont stockées dans le cache local sécurisé de ton navigateur (`chrome.storage.local`).**
 - Contrairement à la version GNOME tierce, ton authentification vers l'Intra se fait silencieusement et de façon native. AUCUN outil tiers n'enregistre ton cookie `_intra_42_session_production`, l'extension utilise uniquement ton compte Google Chrome actif.
 
-*(Créée par [Ton Pseudonyme] / Convertie pour Google Chrome)*
+*(Créée par [elarue] / Convertie pour Google Chrome)*
