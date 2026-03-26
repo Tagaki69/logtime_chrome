@@ -78,7 +78,6 @@ function saveOptions() {
     status.textContent = 'Sauvegarde & Récupération des données...';
     status.classList.add('show');
     
-    // Trigger un refresh en background pour vérifier que ça marche
     chrome.runtime.sendMessage({action: "refresh"}, (response) => {
       if (response && response.status === "error") {
         status.textContent = 'Erreur API: Vérifie ton UID/Secret.';

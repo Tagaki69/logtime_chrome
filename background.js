@@ -6,6 +6,13 @@ let tokenExpire = 0;
 chrome.runtime.onInstalled.addListener(() => {
   chrome.alarms.create("refreshData", { periodInMinutes: 5 });
   console.log("Extension Logtime installée. Alarme créée.");
+
+  chrome.storage.local.get(['clusterTimes'], (data) => {
+    if (!data.clusterTimes) {
+      chrome.storage.local.set({ clusterTimes: {}, lastProcessedLocationId: 0 });
+      console.log("Initialisation Matrix (0 postes) terminée.");
+    }
+  });
 });
 
 // Restaurer le badge au démarrage du navigateur
@@ -88,24 +95,77 @@ async function refreshAllData() {
   const username = settings.username;
   if (!username) return false;
 
+  // --- Déterminer la plage de dates ---
+  const storageData = await chrome.storage.local.get(['clusterTimes', 'lastProcessedLocationId']);
+  let clusterTimes = storageData.clusterTimes || {};
+  let lastProcessedLocationId = storageData.lastProcessedLocationId || 0;
+  const isFirstFetch = (lastProcessedLocationId === 0);
+
   const now = new Date();
-  const startObj = new Date(now.getFullYear(), now.getMonth(), 1);
+  let startObj;
+  if (isFirstFetch) {
+    // Premier lancement : on remonte sur 1 an
+    startObj = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
+    console.log("🔄 Premier fetch Matrix : récupération de 1 an d'historique...");
+  } else {
+    // Refresh normal : juste le mois en cours
+    startObj = new Date(now.getFullYear(), now.getMonth(), 1);
+  }
   const endObj = new Date(now.getFullYear(), now.getMonth() + 1, 0);
   
-  // Format for Intra API
-  // Using simplified strings
   const start = startObj.toISOString();
   const end = endObj.toISOString();
 
   try {
-    // 1. Fetch Logtime
-    const locsRes = await fetch(`https://api.intra.42.fr/v2/users/${username}/locations?range[begin_at]=${start},${end}&per_page=100`, {
-      headers: { 'Authorization': `Bearer ${currentToken}` }
-    });
-    if (!locsRes.ok) {
-      throw new Error(`Failed to fetch logtime: ${locsRes.status} ${await locsRes.text()}`);
+    // 1. Fetch Logtime (paginé si premier fetch, sinon 1 seule page)
+    let allLocs = [];
+    let page = 1;
+    let hasMore = true;
+
+    while (hasMore) {
+      const locsRes = await fetch(`https://api.intra.42.fr/v2/users/${username}/locations?range[begin_at]=${start},${end}&per_page=100&page=${page}`, {
+        headers: { 'Authorization': `Bearer ${currentToken}` }
+      });
+      if (!locsRes.ok) {
+        throw new Error(`Failed to fetch logtime: ${locsRes.status} ${await locsRes.text()}`);
+      }
+      const pageLocs = await locsRes.json();
+      if (Array.isArray(pageLocs) && pageLocs.length > 0) {
+        allLocs = allLocs.concat(pageLocs);
+        page++;
+        if (pageLocs.length < 100) {
+          hasMore = false;
+        } else {
+          await new Promise(r => setTimeout(r, 600)); // Rate limit
+        }
+      } else {
+        hasMore = false;
+      }
     }
-    const locs = await locsRes.json();
+    const locs = allLocs;
+    if (isFirstFetch) {
+      console.log(`✅ Premier fetch terminé : ${locs.length} sessions récupérées sur 1 an.`);
+    }
+
+    // --- Matrix Live Tracking ---
+    let activeSession = null;
+    let maxId = lastProcessedLocationId;
+
+    if (Array.isArray(locs)) {
+      locs.forEach(loc => {
+        if (loc.id <= lastProcessedLocationId) return;
+
+        if (loc.end_at !== null) {
+          // Session terminée : on ajoute les minutes de façon permanente
+          const durationMins = Math.floor((new Date(loc.end_at) - new Date(loc.begin_at)) / 60000);
+          clusterTimes[loc.host] = (clusterTimes[loc.host] || 0) + durationMins;
+          if (loc.id > maxId) maxId = loc.id;
+        } else {
+          // Session active
+          activeSession = { host: loc.host, begin_at: loc.begin_at };
+        }
+      });
+    }
 
     // Sleep gently to avoid hitting rate limit
     await new Promise(r => setTimeout(r, 600));
@@ -196,7 +256,10 @@ async function refreshAllData() {
       cachedLocations: Array.isArray(locs) ? locs : [],
       cachedStats: stats && !stats.error ? stats : null,
       cachedFriends: friendsStats,
-      lastRefresh: Date.now()
+      lastRefresh: Date.now(),
+      clusterTimes: clusterTimes,
+      lastProcessedLocationId: maxId,
+      activeSession: activeSession
     });
 
     return true;

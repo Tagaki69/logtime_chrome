@@ -22,6 +22,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   });
 
+  document.getElementById("btnMatrix").addEventListener("click", () => {
+    chrome.tabs.create({ url: "https://matrix.42lyon.fr/claimed" });
+  });
+
   document.getElementById("btnCalendar").addEventListener("click", () => {
     document.getElementById("friendsView").style.display = "none";
     document.getElementById("calendarView").style.display = "block";
