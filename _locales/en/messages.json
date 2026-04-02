@@ -1,0 +1,173 @@
+{
+  "extName": {
+    "message": "42 Logtime Dashboard"
+  },
+  "extDesc": {
+    "message": "Chrome extension to track your Logtime, evaluations and friends at the 42 cluster."
+  },
+  "loading": {
+    "message": "Loading..."
+  },
+  "apiError": {
+    "message": "API Error"
+  },
+  "checkKeys": {
+    "message": "Check your keys: Options ⚙️"
+  },
+  "today": {
+    "message": "Today"
+  },
+  "wallet": {
+    "message": "Wallet"
+  },
+  "eval": {
+    "message": "Eval"
+  },
+  "blackhole": {
+    "message": "Blackhole"
+  },
+  "blackholeSafe": {
+    "message": "Safe!"
+  },
+  "friendsStatus": {
+    "message": "FRIENDS STATUS"
+  },
+  "myCalendar": {
+    "message": "MY CALENDAR"
+  },
+  "noFriends": {
+    "message": "No friends configured."
+  },
+  "dailyTargetPrefix": {
+    "message": "Target/D:"
+  },
+  "dailyTargetDone": {
+    "message": "Target: Done!"
+  },
+  "currentProject": {
+    "message": "Current project:"
+  },
+  "sinceDay": {
+    "message": "For $DAYS$ day$SUFFIX$",
+    "placeholders": {
+      "days": { "content": "$1" },
+      "suffix": { "content": "$2" }
+    }
+  },
+  "notLoggedIn": {
+    "message": "Not logged in on Intra"
+  },
+  "logIn": {
+    "message": "➔ Log in"
+  },
+  "connecting": {
+    "message": "Connecting..."
+  },
+  "tooltipMatrix": {
+    "message": "Matrix"
+  },
+  "tooltipCalendar": {
+    "message": "My Calendar"
+  },
+  "tooltipFriends": {
+    "message": "Friends"
+  },
+  "tooltipProfile": {
+    "message": "My Profile"
+  },
+  "tooltipRefresh": {
+    "message": "Refresh"
+  },
+  "tooltipSettings": {
+    "message": "Settings"
+  },
+  "optionsTitle": {
+    "message": "42 Logtime Configuration"
+  },
+  "optionsLogtimeBH": {
+    "message": "⏱️ Logtime & Blackhole Settings"
+  },
+  "optionsGiftDays": {
+    "message": "Gift Days"
+  },
+  "optionsGiftDaysHint": {
+    "message": "1 day = -7h on the target"
+  },
+  "optionsFreezeDays": {
+    "message": "Freeze Days"
+  },
+  "optionsFreezeDaysHint": {
+    "message": "Extra days added to Blackhole"
+  },
+  "optionsCoalitionTheme": {
+    "message": "Enable dynamic Coalition background"
+  },
+  "optionsPlanning": {
+    "message": "📅 My Weekly Schedule"
+  },
+  "optionsPlanningDesc": {
+    "message": "Check the days you plan to work to calculate your daily target."
+  },
+  "optionsFriends": {
+    "message": "👥 Friends Management"
+  },
+  "optionsAddFriend": {
+    "message": "Add"
+  },
+  "optionsDeleteFriend": {
+    "message": "Delete"
+  },
+  "optionsSaved": {
+    "message": "Saved!"
+  },
+  "daySunday": { "message": "Sunday" },
+  "dayMonday": { "message": "Monday" },
+  "dayTuesday": { "message": "Tuesday" },
+  "dayWednesday": { "message": "Wednesday" },
+  "dayThursday": { "message": "Thursday" },
+  "dayFriday": { "message": "Friday" },
+  "daySaturday": { "message": "Saturday" },
+  "errorReload": {
+    "message": "The extension must be reloaded in chrome://extensions!"
+  },
+  "errorOAuth": {
+    "message": "OAuth connection error"
+  },
+  "optionsNotifications": {
+    "message": "🔔 Notifications"
+  },
+  "optionsEnableNotifs": {
+    "message": "Enable friend connection notifications"
+  },
+  "optionsNotifHint": {
+    "message": "Toggle the bell 🔔 next to a friend to be notified when they connect."
+  },
+  "notifFriendOnline": {
+    "message": "$LOGIN$ just connected! ($HOST$)",
+    "placeholders": {
+      "login": { "content": "$1" },
+      "host": { "content": "$2" }
+    }
+  },
+  "notifTitle": {
+    "message": "42 Logtime"
+  },
+  "optionsAPI": {
+    "message": "🔑 42 API Configuration"
+  },
+  "optionsLogin": {
+    "message": "42 Login"
+  },
+  "optionsClientId": {
+    "message": "Client ID (UID)"
+  },
+  "optionsClientSecret": {
+    "message": "Client Secret"
+  },
+  "optionsAPIHint": {
+    "message": "Create your app in Intra > Settings > Apps. Redirect URI: $URL$",
+    "placeholders": {
+      "url": { "content": "$1" }
+    }
+  }
+}

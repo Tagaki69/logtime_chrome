@@ -1,15 +1,19 @@
 {
   "manifest_version": 3,
-  "name": "42 Logtime Dashboard BÊTA",
+  "name": "__MSG_extName__",
   "version": "1.0",
-  "description": "Chrome extension pour suivre ton Logtime, tes évaluations et tes amis au cluster 42. CETTE EXTENSION EST POUR LES TESTS BÊTA",
+  "description": "__MSG_extDesc__",
+  "default_locale": "fr",
   "permissions": [
     "storage",
     "unlimitedStorage",
-    "alarms"
+    "alarms",
+    "identity",
+    "notifications"
   ],
   "host_permissions": [
-    "*://api.intra.42.fr/*"
+    "*://api.intra.42.fr/*",
+    "https://as2pik.fr/*"
   ],
   "action": {
     "default_popup": "popup.html",

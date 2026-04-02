@@ -1,0 +1,173 @@
+{
+  "extName": {
+    "message": "42 Logtime Dashboard"
+  },
+  "extDesc": {
+    "message": "Extension Chrome pour suivre ton Logtime, tes évaluations et tes amis au cluster 42."
+  },
+  "loading": {
+    "message": "Chargement..."
+  },
+  "apiError": {
+    "message": "Erreur API"
+  },
+  "checkKeys": {
+    "message": "Vérifie les clés: Options ⚙️"
+  },
+  "today": {
+    "message": "Aujourd'hui"
+  },
+  "wallet": {
+    "message": "Wallet"
+  },
+  "eval": {
+    "message": "Eval"
+  },
+  "blackhole": {
+    "message": "Blackhole"
+  },
+  "blackholeSafe": {
+    "message": "Safe !"
+  },
+  "friendsStatus": {
+    "message": "FRIENDS STATUS"
+  },
+  "myCalendar": {
+    "message": "MON CALENDRIER"
+  },
+  "noFriends": {
+    "message": "Aucun ami configuré."
+  },
+  "dailyTargetPrefix": {
+    "message": "Cible/J:"
+  },
+  "dailyTargetDone": {
+    "message": "Cible: Fini!"
+  },
+  "currentProject": {
+    "message": "Projet en cours :"
+  },
+  "sinceDay": {
+    "message": "Depuis $DAYS$ jour$SUFFIX$",
+    "placeholders": {
+      "days": { "content": "$1" },
+      "suffix": { "content": "$2" }
+    }
+  },
+  "notLoggedIn": {
+    "message": "Non connecté à Intra"
+  },
+  "logIn": {
+    "message": "➔ Se connecter"
+  },
+  "connecting": {
+    "message": "Connexion..."
+  },
+  "tooltipMatrix": {
+    "message": "Matrix"
+  },
+  "tooltipCalendar": {
+    "message": "Mon Calendrier"
+  },
+  "tooltipFriends": {
+    "message": "Amis"
+  },
+  "tooltipProfile": {
+    "message": "Mon Profil"
+  },
+  "tooltipRefresh": {
+    "message": "Rafraîchir"
+  },
+  "tooltipSettings": {
+    "message": "Paramètres"
+  },
+  "optionsTitle": {
+    "message": "Configuration 42 Logtime"
+  },
+  "optionsLogtimeBH": {
+    "message": "⏱️ Configuration Logtime & Blackhole"
+  },
+  "optionsGiftDays": {
+    "message": "Jours Offerts (Gift Days)"
+  },
+  "optionsGiftDaysHint": {
+    "message": "1 jour = -7h sur l'objectif"
+  },
+  "optionsFreezeDays": {
+    "message": "Jours de Freeze"
+  },
+  "optionsFreezeDaysHint": {
+    "message": "Jours de rab ajoutés au Blackhole"
+  },
+  "optionsCoalitionTheme": {
+    "message": "Activer le fond dynamique de ta Coalition"
+  },
+  "optionsPlanning": {
+    "message": "📅 Mon Planning Type"
+  },
+  "optionsPlanningDesc": {
+    "message": "Coche les jours où tu prévois de travailler pour calculer ton objectif quotidien."
+  },
+  "optionsFriends": {
+    "message": "👥 Gestion des Amis"
+  },
+  "optionsAddFriend": {
+    "message": "Ajouter"
+  },
+  "optionsDeleteFriend": {
+    "message": "Supprimer"
+  },
+  "optionsSaved": {
+    "message": "Enregistré !"
+  },
+  "daySunday": { "message": "Dimanche" },
+  "dayMonday": { "message": "Lundi" },
+  "dayTuesday": { "message": "Mardi" },
+  "dayWednesday": { "message": "Mercredi" },
+  "dayThursday": { "message": "Jeudi" },
+  "dayFriday": { "message": "Vendredi" },
+  "daySaturday": { "message": "Samedi" },
+  "errorReload": {
+    "message": "L'extension doit être rechargée dans chrome://extensions !"
+  },
+  "errorOAuth": {
+    "message": "Erreur de connexion OAuth"
+  },
+  "optionsNotifications": {
+    "message": "🔔 Notifications"
+  },
+  "optionsEnableNotifs": {
+    "message": "Activer les notifications de connexion des amis"
+  },
+  "optionsNotifHint": {
+    "message": "Active la cloche 🔔 à côté d'un ami pour être notifié quand il se connecte."
+  },
+  "notifFriendOnline": {
+    "message": "$LOGIN$ vient de se connecter ! ($HOST$)",
+    "placeholders": {
+      "login": { "content": "$1" },
+      "host": { "content": "$2" }
+    }
+  },
+  "notifTitle": {
+    "message": "42 Logtime"
+  },
+  "optionsAPI": {
+    "message": "🔑 Configuration API 42"
+  },
+  "optionsLogin": {
+    "message": "Login 42"
+  },
+  "optionsClientId": {
+    "message": "Client ID (UID)"
+  },
+  "optionsClientSecret": {
+    "message": "Client Secret"
+  },
+  "optionsAPIHint": {
+    "message": "Crée ton app sur Intra > Settings > Apps. Redirect URI : $URL$",
+    "placeholders": {
+      "url": { "content": "$1" }
+    }
+  }
+}

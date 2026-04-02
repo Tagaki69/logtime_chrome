@@ -138,6 +138,40 @@ button.danger:hover {
   background: var(--danger-hover);
 }
 
+.primary-btn {
+  background-color: var(--primary);
+  color: white;
+  padding: 12px 20px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  box-shadow: 0 4px 6px rgba(9, 132, 227, 0.2);
+  transition: all 0.2s ease;
+}
+
+.primary-btn:hover {
+  background-color: var(--primary-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 8px rgba(9, 132, 227, 0.3);
+}
+
+.primary-btn:active {
+  transform: translateY(0);
+}
+
+.primary-btn:disabled {
+  background-color: var(--border);
+  color: var(--text-muted);
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.connected {
+  background-color: var(--success) !important;
+  box-shadow: 0 4px 6px rgba(0, 184, 148, 0.2) !important;
+}
+
 .days-grid {
   display: flex;
   flex-wrap: wrap;

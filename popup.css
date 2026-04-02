@@ -1,17 +1,55 @@
+html,
 body {
   width: 320px;
   margin: 0;
+  padding: 0;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  background-color: #1a1a2e; /* Dark theme default */
+  background-color: #1a1a2e;
   color: #fff;
-  overflow-x: hidden;
+  overflow: hidden;
 }
 
 .header {
   padding: 15px;
-  background-color: #16213e;
-  border-bottom: 1px solid #0f3460;
+  background-color: rgba(22, 33, 62, 0.6);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
   text-align: center;
+}
+
+.user-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 15px;
+  background: rgba(0, 0, 0, 0.2);
+  padding: 8px 12px;
+  border-radius: 8px;
+  text-align: left;
+}
+
+.user-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.15);
+  object-fit: cover;
+}
+
+.user-login {
+  font-size: 14px;
+  font-weight: bold;
+  color: #00b8ca;
+  letter-spacing: 0.3px;
+  margin-bottom: 3px;
+}
+
+.user-info {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+  justify-content: center;
 }
 
 .main-time {
@@ -49,14 +87,18 @@ body {
 
 .stats-grid {
   display: flex;
+  flex-wrap: wrap;
   padding: 10px;
   gap: 10px;
   border-bottom: 1px solid #0f3460;
 }
 
 .stat-box {
-  flex: 1;
-  background: #16213e;
+  flex: 1 1 45%;
+  background: rgba(22, 33, 62, 0.6);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
   border-radius: 6px;
   padding: 8px 0;
   text-align: center;
@@ -82,7 +124,10 @@ body {
   font-weight: bold;
   color: #a8a8b3;
   text-transform: uppercase;
-  background: #111;
+  background: rgba(17, 17, 17, 0.6);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
   letter-spacing: 0.5px;
 }
 
@@ -110,8 +155,9 @@ body {
 
 
 .view-panel {
-  max-height: 250px;
+  max-height: 216px;
   overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .friends-list {
@@ -125,11 +171,13 @@ body {
   padding: 10px 15px;
   border-bottom: 1px solid #0f3460;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: background 0.2s, transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
 .friend-row:hover {
-  background: #16213e;
+  background: rgba(22, 33, 62, 0.8);
+  transform: scale(1.02);
+  border-radius: 4px;
 }
 
 .friend-avatar {
@@ -173,8 +221,21 @@ body {
   text-align: right;
 }
 
-.status-online { color: #2ed573; font-weight: bold; }
-.status-offline { color: #ff4757; }
+.friend-location {
+  font-size: 14px;
+  font-weight: bold;
+  color: #2ed573;
+  margin-right: 4px;
+}
+
+.status-online {
+  color: #2ed573;
+  font-weight: bold;
+}
+
+.status-offline {
+  color: #ff4757;
+}
 
 .calendar-grid {
   display: grid;
@@ -185,7 +246,9 @@ body {
 
 .cal-day {
   aspect-ratio: 1;
-  background: #16213e;
+  background: rgba(22, 33, 62, 0.6);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
   border-radius: 4px;
   display: flex;
   flex-direction: column;
@@ -195,12 +258,32 @@ body {
 }
 
 /* Colors for heat map */
-.cal-lvl-0 { background: #16213e; color: #555; }
-.cal-lvl-1 { background: #00441b; }
-.cal-lvl-2 { background: #006d2c; }
-.cal-lvl-3 { background: #238b45; }
-.cal-lvl-4 { background: #41ab5d; }
-.cal-lvl-5 { background: #74c476; color: #000; font-weight: bold;}
+.cal-lvl-0 {
+  background: #16213e;
+  color: #555;
+}
+
+.cal-lvl-1 {
+  background: #00441b;
+}
+
+.cal-lvl-2 {
+  background: #006d2c;
+}
+
+.cal-lvl-3 {
+  background: #238b45;
+}
+
+.cal-lvl-4 {
+  background: #41ab5d;
+}
+
+.cal-lvl-5 {
+  background: #74c476;
+  color: #000;
+  font-weight: bold;
+}
 
 .cal-day-num {
   font-weight: bold;
@@ -216,13 +299,171 @@ body {
 ::-webkit-scrollbar {
   width: 6px;
 }
+
 ::-webkit-scrollbar-track {
-  background: #111; 
+  background: #111;
 }
+
 ::-webkit-scrollbar-thumb {
-  background: #0f3460; 
+  background: #0f3460;
   border-radius: 3px;
 }
+
 ::-webkit-scrollbar-thumb:hover {
-  background: #e94560; 
+  background: #e94560;
+}
+
+/* Login Overlay */
+.login-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: #1a1a2e;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+}
+
+.login-content {
+  background: rgba(22, 33, 62, 0.8);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  padding: 30px;
+  border-radius: 8px;
+  width: 80%;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.login-overlay h2 {
+  font-size: 16px;
+  margin-bottom: 20px;
+  font-weight: normal;
+  color: #fff;
+}
+
+#btnLoginIntra {
+  background-color: #00b8ca;
+  color: #fff;
+  border: none;
+  padding: 12px 20px;
+  font-size: 16px;
+  font-weight: bold;
+  border-radius: 4px;
+  cursor: pointer;
+  width: 100%;
+  margin-bottom: 20px;
+  transition: background 0.2s;
+}
+
+#btnLoginIntra:hover {
+  background-color: #0098a6;
+}
+
+.logo-box {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 15px;
+}
+
+.logo-text {
+  font-size: 24px;
+  font-weight: bold;
+  color: #00b8ca;
+}
+
+.white-text {
+  color: #fff;
+}
+
+/* Level Bar */
+.level-container {
+  margin-bottom: 0px;
+  width: 100%;
+}
+
+.level-label {
+  font-size: 10px;
+  font-weight: bold;
+  color: #fff;
+  opacity: 0.9;
+  margin-bottom: 2px;
+}
+
+.level-bar-bg {
+  width: 100%;
+  height: 8px;
+  background: #0f3460;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.level-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #00b8ca, #2ed573);
+  width: 0%;
+  transition: width 0.5s ease;
+}
+
+/* Base Body settings for coalition themes */
+body {
+  background-attachment: fixed;
+  transition: background 0.5s ease;
+}
+
+/* Coalition Themes: Beautiful Radial Gradients */
+body.theme-fire {
+  background: radial-gradient(ellipse at bottom right, rgba(231, 76, 60, 0.4) 0%, #1a1a2e 70%),
+    radial-gradient(ellipse at top left, rgba(192, 57, 43, 0.2) 0%, #1a1a2e 70%) !important;
+  background-color: #1a1a2e;
+}
+
+body.theme-water {
+  background: radial-gradient(ellipse at bottom right, rgba(41, 128, 185, 0.4) 0%, #1a1a2e 70%),
+    radial-gradient(ellipse at top left, rgba(52, 152, 219, 0.2) 0%, #1a1a2e 70%) !important;
+  background-color: #1a1a2e;
+}
+
+body.theme-earth {
+  background: radial-gradient(ellipse at bottom right, rgba(39, 174, 96, 0.4) 0%, #1a1a2e 70%),
+    radial-gradient(ellipse at top left, rgba(46, 204, 113, 0.2) 0%, #1a1a2e 70%) !important;
+  background-color: #1a1a2e;
+}
+
+body.theme-air {
+  background: radial-gradient(ellipse at bottom right, rgba(142, 68, 173, 0.4) 0%, #1a1a2e 70%),
+    radial-gradient(ellipse at top left, rgba(155, 89, 182, 0.2) 0%, #1a1a2e 70%) !important;
+  background-color: #1a1a2e;
+}
+
+/* For Air, sometimes it's silver/wind, if so we could use grey. Let's make it purple-ish or greyish white. */
+
+/* Custom Tooltip */
+.custom-tooltip {
+  position: fixed;
+  background: rgba(15, 20, 35, 0.85);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  pointer-events: none;
+  z-index: 1000;
+  opacity: 0;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  transform: translateY(5px);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+  text-align: center;
+}
+
+.custom-tooltip.show {
+  opacity: 1;
+  transform: translateY(0);
 }

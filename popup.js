@@ -1,18 +1,30 @@
+/**
+ * popup.js — Main entry point (orchestrator)
+ * Imports all modules and wires up event listeners.
+ */
+import { t, translatePage } from './modules/i18n.js';
+import { initTooltips, applyCoalitionTheme } from './modules/ui.js';
+import { renderStats, calculateLogtime, renderLogtime, calculateDailyTarget } from './modules/stats.js';
+import { renderCalendar } from './modules/calendar.js';
+import { renderFriends } from './modules/friends.js';
+
 document.addEventListener("DOMContentLoaded", async () => {
-  // Bind actions
+  // Translate the page on load
+  translatePage();
+
+  // --- Button bindings ---
   document.getElementById("btnSettings").addEventListener("click", () => {
     chrome.runtime.openOptionsPage();
   });
-  
+
   document.getElementById("btnRefresh").addEventListener("click", () => {
-    chrome.runtime.sendMessage({action: "refresh"}, () => {
+    chrome.runtime.sendMessage({ action: "refresh" }, () => {
       loadData();
     });
-    // Temporary UI feedback
     document.getElementById("btnRefresh").style.opacity = "0.3";
     setTimeout(() => { document.getElementById("btnRefresh").style.opacity = "1"; }, 1000);
   });
-  
+
   document.getElementById("btnProfile").addEventListener("click", async () => {
     const settings = await chrome.storage.local.get("username");
     if (settings.username) {
@@ -26,12 +38,45 @@ document.addEventListener("DOMContentLoaded", async () => {
     chrome.tabs.create({ url: "https://matrix.42lyon.fr/claimed" });
   });
 
+  document.getElementById("btnLoginIntra").addEventListener("click", async () => {
+    const btn = document.getElementById("btnLoginIntra");
+    
+    const settings = await chrome.storage.local.get(['clientId', 'clientSecret', 'username']);
+    if (!settings.clientId || !settings.clientSecret || !settings.username) {
+      chrome.runtime.openOptionsPage();
+      return;
+    }
+
+    btn.textContent = t("connecting");
+    btn.disabled = true;
+    chrome.runtime.sendMessage({ action: "login" }, (response) => {
+      const err = chrome.runtime.lastError;
+      btn.textContent = t("logIn");
+      btn.disabled = false;
+
+      if (err) {
+        alert(t("errorReload") + " " + err.message);
+        return;
+      }
+
+      if (response && response.status === "success") {
+        document.getElementById("loginOverlay").style.display = "none";
+        loadData();
+      } else {
+        alert(t("errorOAuth") + ": " + (response && response.error ? response.error : "Unknown"));
+        if (response && response.error && response.error.includes("configurer votre UID")) {
+          chrome.runtime.openOptionsPage();
+        }
+      }
+    });
+  });
+
   document.getElementById("btnCalendar").addEventListener("click", () => {
     document.getElementById("friendsView").style.display = "none";
     document.getElementById("calendarView").style.display = "block";
     document.getElementById("btnCalendar").style.display = "none";
     document.getElementById("btnFriends").style.display = "inline-block";
-    document.getElementById("friendsTitle").textContent = "MON CALENDRIER";
+    document.getElementById("friendsTitle").textContent = t("myCalendar");
   });
 
   document.getElementById("btnFriends").addEventListener("click", () => {
@@ -39,235 +84,109 @@ document.addEventListener("DOMContentLoaded", async () => {
     document.getElementById("friendsView").style.display = "block";
     document.getElementById("btnFriends").style.display = "none";
     document.getElementById("btnCalendar").style.display = "inline-block";
-    document.getElementById("friendsTitle").textContent = "FRIENDS STATUS";
+    document.getElementById("friendsTitle").textContent = t("friendsStatus");
   });
 
   // Listen for progressive friend updates
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area === 'local' && changes.cachedFriends) {
       renderFriends(changes.cachedFriends.newValue);
+      initTooltips();
     }
   });
 
   await loadData();
 });
 
+/**
+ * Loads all data from chrome.storage and triggers rendering.
+ */
 async function loadData() {
-  const data = await chrome.storage.local.get(['cachedLocations', 'cachedStats', 'cachedFriends', 'username', 'giftDays', 'days']);
-  
-  if (!data.username) {
-    document.getElementById("mainTime").textContent = "Config requise";
-    document.getElementById("ratioTime").textContent = "Clique sur l'engrenage ⚙️";
+  const data = await chrome.storage.local.get([
+    'cachedLocations', 'cachedStats', 'cachedFriends', 'cachedCoalition',
+    'username', 'giftDays', 'freezeDays', 'enableCoalitionTheme', 'days',
+    'userCampus', 'userAvatar', 'accessToken', 'clientId', 'clientSecret'
+  ]);
+
+  if (!data.username || !data.accessToken || !data.clientId || !data.clientSecret) {
+    document.getElementById("loginOverlay").style.display = "flex";
     return;
+  } else {
+    document.getElementById("loginOverlay").style.display = "none";
   }
 
-  // Si on a pas encore de stats en cache, on force un refresh silencieux
+  // If no cached stats yet, force a silent refresh
   if (!data.cachedStats) {
-    document.getElementById("mainTime").textContent = "Chargement...";
-    chrome.runtime.sendMessage({action: "refresh"}, async (res) => {
-        if (res && res.status === "success") {
-           const newData = await chrome.storage.local.get(['cachedLocations', 'cachedStats', 'cachedFriends', 'giftDays', 'days']);
-           Object.assign(data, newData);
-           renderEverything(data);
-        } else {
-           document.getElementById("mainTime").textContent = "Erreur API";
-           document.getElementById("ratioTime").textContent = "Vérifie les clés: Options ⚙️";
-        }
+    document.getElementById("mainTime").textContent = t("loading");
+    chrome.runtime.sendMessage({ action: "refresh" }, async (res) => {
+      if (res && res.status === "success") {
+        const newData = await chrome.storage.local.get([
+          'cachedLocations', 'cachedStats', 'cachedFriends', 'cachedCoalition',
+          'giftDays', 'freezeDays', 'enableCoalitionTheme', 'days',
+          'userCampus', 'userAvatar'
+        ]);
+        Object.assign(data, newData);
+        renderEverything(data);
+      } else {
+        document.getElementById("mainTime").textContent = t("apiError");
+        document.getElementById("ratioTime").textContent = t("checkKeys");
+      }
     });
-    return; // renderEverything handled via callback
+    return;
   }
 
   renderEverything(data);
 }
 
+/**
+ * Master render function — orchestrates all module renders.
+ * @param {Object} data - All data from chrome.storage
+ */
 function renderEverything(data) {
-  // --- STATS ---
-  if (data.cachedStats) {
-    document.getElementById("wallet").textContent = data.cachedStats.wallet !== undefined ? `${data.cachedStats.wallet}₳` : "-";
-    document.getElementById("evalPoints").textContent = data.cachedStats.correction_point !== undefined ? data.cachedStats.correction_point : "-";
+  // --- USER BANNER (avatar + login) ---
+  if (data.username) {
+    const banner = document.getElementById("userBanner");
+    const avatarEl = document.getElementById("userAvatar");
+    const loginEl = document.getElementById("userLogin");
+    loginEl.textContent = data.username;
+    if (data.userAvatar) {
+      avatarEl.style.display = "";
+      avatarEl.src = data.userAvatar;
+      avatarEl.alt = data.username;
+      avatarEl.onerror = () => { avatarEl.style.display = "none"; };
+    } else {
+      avatarEl.style.display = "none";
+    }
+    banner.style.display = "flex";
   }
 
-  // --- LOGTIME CALCULATION ---
-  const locs = data.cachedLocations || [];
-  let totalMs = 0;
-  let todayMs = 0;
-  const todayStr = new Date().toDateString();
+  // --- MATRIX: Lyon only ---
+  const btnMatrix = document.getElementById("btnMatrix");
+  if (data.userCampus && data.userCampus.toLowerCase().includes('lyon')) {
+    btnMatrix.style.display = "";
+  } else {
+    btnMatrix.style.display = "none";
+  }
 
-  const daysCache = {}; // For calendar grid
+  // Stats (wallet, eval, blackhole, XP, project)
+  renderStats(data.cachedStats, data.freezeDays);
 
-  locs.forEach(l => {
-    const s = new Date(l.begin_at);
-    const e = l.end_at ? new Date(l.end_at) : new Date();
-    const dur = e - s;
-    totalMs += dur;
+  // Coalition theme
+  applyCoalitionTheme(data.enableCoalitionTheme, data.cachedCoalition);
 
-    if (s.toDateString() === todayStr) {
-      todayMs += dur;
-    }
-
-    const dateKey = s.getDate();
-    if (!daysCache[dateKey]) daysCache[dateKey] = 0;
-    daysCache[dateKey] += dur;
-  });
-
-  // Render Time
-  const th = Math.floor(todayMs / 3600000);
-  const tm = Math.floor((todayMs % 3600000) / 60000);
-  document.getElementById("todayLogtime").textContent = `${th}h${tm.toString().padStart(2, '0')}`;
-
-  const mh = Math.floor(totalMs / 3600000);
-  const mm = Math.floor((totalMs % 3600000) / 60000);
-  document.getElementById("mainTime").textContent = `Logtime ${mh}h ${mm.toString().padStart(2, '0')}m`;
-
-  const giftDays = data.giftDays || 0;
-  const targetHours = Math.max(0, 154 - (giftDays * 7));
-  document.getElementById("ratioTime").textContent = `${mh}h ${mm}m / ${targetHours}h`;
-
-  const pct = Math.min(100, Math.max(0, (mh / targetHours) * 100)) || 0;
-  document.getElementById("progressBar").style.width = `${pct}%`;
+  // Logtime calculation & rendering
+  const { totalMs, todayMs, daysCache } = calculateLogtime(data.cachedLocations);
+  const targetHours = renderLogtime(totalMs, todayMs, data.giftDays);
 
   // Daily target
   calculateDailyTarget(targetHours, totalMs, data.days);
 
-  // Render Calendar Grid
+  // Calendar heatmap
   renderCalendar(daysCache);
 
-  // Render Friends
+  // Friends list
   renderFriends(data.cachedFriends || {});
+
+  // Tooltips (after all dynamic content is rendered)
+  initTooltips();
 }
-
-function calculateDailyTarget(targetHours, currentMs, workableDays) {
-  const currentHours = currentMs / 3600000.0;
-  const remainingHours = targetHours - currentHours;
-  const targetLbl = document.getElementById("targetDaily");
-
-  if (remainingHours <= 0) {
-    targetLbl.textContent = "Cible: Fini!";
-    targetLbl.style.color = "#2ed573";
-    return;
-  }
-
-  const now = new Date();
-  const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-  let workableCount = 0;
-
-  for (let d = now.getDate() + 1; d <= endOfMonth.getDate(); d++) {
-    const tmp = new Date(now.getFullYear(), now.getMonth(), d);
-    const dayNameIndex = tmp.getDay();
-    if (workableDays && workableDays[`day-${dayNameIndex}`]) {
-      workableCount++;
-    }
-  }
-
-  const dailyAvg = workableCount > 0 ? (remainingHours / workableCount) : remainingHours;
-  const dh = Math.floor(dailyAvg);
-  const dm = Math.floor((dailyAvg - dh) * 60);
-
-  targetLbl.textContent = `Cible/J: ${dh}h${dm.toString().padStart(2, '0')}`;
-  targetLbl.style.color = "#f39c12";
-}
-
-function renderCalendar(daysCache) {
-  const grid = document.getElementById("calendarGrid");
-  grid.innerHTML = "";
-  
-  const now = new Date();
-  const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-
-  for (let d = 1; d <= daysInMonth; d++) {
-    const box = document.createElement("div");
-    
-    const ms = daysCache[d] || 0;
-    const hours = ms / 3600000;
-
-    let classLvl = "cal-lvl-0";
-    if (hours > 0 && hours < 2) classLvl = "cal-lvl-1";
-    else if (hours >= 2 && hours < 5) classLvl = "cal-lvl-2";
-    else if (hours >= 5 && hours < 7) classLvl = "cal-lvl-3";
-    else if (hours >= 7 && hours < 9) classLvl = "cal-lvl-4";
-    else if (hours >= 9) classLvl = "cal-lvl-5";
-
-    box.className = `cal-day ${classLvl}`;
-    
-    const num = document.createElement("span");
-    num.className = "cal-day-num";
-    num.textContent = d.toString();
-    box.appendChild(num);
-
-    if (hours > 0) {
-      const v = document.createElement("span");
-      v.className = "cal-val";
-      const hInt = Math.floor(hours);
-      const mInt = Math.floor((ms % 3600000) / 60000);
-      v.textContent = `${hInt}h${mInt.toString().padStart(2, '0')}`;
-      box.appendChild(v);
-    }
-
-    grid.appendChild(box);
-  }
-}
-
-function renderFriends(friendsStats) {
-  const box = document.getElementById("friendsBox");
-  box.innerHTML = "";
-  
-  const friendsKeys = Object.keys(friendsStats);
-  if (friendsKeys.length === 0) {
-    box.innerHTML = `<div class="loading">Aucun ami configuré.</div>`;
-    return;
-  }
-
-  // Sort by online status
-  friendsKeys.sort((a, b) => {
-    if (friendsStats[a].active && !friendsStats[b].active) return -1;
-    if (!friendsStats[a].active && friendsStats[b].active) return 1;
-    return a.localeCompare(b);
-  });
-
-  friendsKeys.forEach(login => {
-    const f = friendsStats[login];
-    
-    // Support either the new totalMs or the old locs array
-    let totalMs = f.totalMs || 0;
-    if (totalMs === 0 && f.locs && Array.isArray(f.locs)) {
-      f.locs.forEach(l => {
-        totalMs += ((l.end_at ? new Date(l.end_at) : new Date()) - new Date(l.begin_at));
-      });
-    }
-
-    let fh = Math.floor(totalMs / 3600000);
-    let fm = Math.floor((totalMs % 3600000) / 60000);
-
-    const row = document.createElement("div");
-    row.className = "friend-row";
-    row.onclick = () => { chrome.tabs.create({ url: `https://profile.intra.42.fr/users/${login}` }); };
-
-    const av = document.createElement("div");
-    av.className = "friend-avatar";
-    if (f.avatar) {
-      av.innerHTML = `<img src="${f.avatar}" alt="${login}">`;
-    } else {
-      av.textContent = login.substring(0,2).toUpperCase();
-    }
-    
-    const info = document.createElement("div");
-    info.className = "friend-info";
-    info.innerHTML = `<span class="friend-name">${login}</span><span class="friend-logtime">${fh}h ${fm}m</span>`;
-
-    const st = document.createElement("div");
-    st.className = "friend-status";
-    if (f.refreshing) {
-      st.innerHTML = `<div class="status-offline" style="color:#f39c12; font-size:12px;">🔄...</div>`;
-    } else if (f.active) {
-      st.innerHTML = `<div class="status-online">🟢</div><div style="font-size:9px; color:#2ed573;">${f.active}</div>`;
-    } else {
-      st.innerHTML = `<div class="status-offline">🔴 Off</div>`;
-    }
-
-    row.appendChild(av);
-    row.appendChild(info);
-    row.appendChild(st);
-    box.appendChild(row);
-  });
-}
-

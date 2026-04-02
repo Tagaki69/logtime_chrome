@@ -1,7 +1,7 @@
 // background.js
 
-let token = null;
-let tokenExpire = 0;
+// background.js
+
 
 chrome.runtime.onInstalled.addListener(() => {
   chrome.alarms.create("refreshData", { periodInMinutes: 5 });
@@ -39,51 +39,151 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     });
     return true; // async response
   }
-  if (request.action === "getToken") {
-    getValidToken().then(t => sendResponse({token: t}));
+  if (request.action === "login") {
+    handleLogin().then(res => sendResponse(res));
     return true;
   }
 });
 
+async function handleLogin() {
+  const { clientId, clientSecret } = await chrome.storage.local.get(['clientId', 'clientSecret']);
+  if (!clientId || !clientSecret) {
+    return { status: "error", error: "Veuillez configurer votre UID et Secret dans les options de l'extension." };
+  }
+
+  const redirectUrl = chrome.identity.getRedirectURL();
+  const authUrl = `https://api.intra.42.fr/oauth/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUrl)}&response_type=code&scope=public`;
+
+  return new Promise((resolve) => {
+    chrome.identity.launchWebAuthFlow(
+      { url: authUrl, interactive: true },
+      async (callbackUrl) => {
+        if (chrome.runtime.lastError || !callbackUrl) {
+          console.error("Auth Error:", chrome.runtime.lastError);
+          resolve({ status: "error", error: chrome.runtime.lastError ? chrome.runtime.lastError.message : "Auth cancelled" });
+          return;
+        }
+
+        const urlParams = new URLSearchParams(new URL(callbackUrl).search);
+        const code = urlParams.get("code");
+
+        if (!code) {
+          resolve({ status: "error", error: "No code returned" });
+          return;
+        }
+
+        try {
+          const res = await fetch('https://api.intra.42.fr/oauth/token', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              grant_type: 'authorization_code',
+              client_id: clientId,
+              client_secret: clientSecret,
+              code: code,
+              redirect_uri: redirectUrl
+            })
+          });
+
+          if (!res.ok) throw new Error("Failed to exchange code for token: " + await res.text());
+          const data = await res.json();
+
+          const expire = (Date.now() / 1000) + data.expires_in - 60;
+          await chrome.storage.local.set({
+            accessToken: data.access_token,
+            refreshToken: data.refresh_token,
+            tokenExpire: expire
+          });
+
+          // Retrieve the target login: from storage (manual) or from /v2/me (auto)
+          const localSettings = await chrome.storage.local.get(['username']);
+          let targetLogin = localSettings.username;
+          let userAvatar = null;
+          let campusName = '';
+
+          // Fetch the /v2/me profile of the AUTHENTICATED user to get avatar/campus
+          // (Even if we use a different username for logtime, we fetch the current token's owner info)
+          try {
+            const meRes = await fetch('https://api.intra.42.fr/v2/me', {
+              headers: { 'Authorization': `Bearer ${data.access_token}` }
+            });
+            if (meRes.ok) {
+              const meData = await meRes.json();
+              
+              // If no manual username, use the one from Intra
+              if (!targetLogin || targetLogin.trim() === "") {
+                targetLogin = meData.login;
+                await chrome.storage.local.set({ username: targetLogin });
+              }
+
+              // Extract avatar and campus from the token owner
+              if (meData.image && meData.image.versions && meData.image.versions.small) {
+                userAvatar = meData.image.versions.small;
+              } else if (meData.image && meData.image.link) {
+                userAvatar = meData.image.link;
+              }
+              if (meData.campus && Array.isArray(meData.campus) && meData.campus.length > 0) {
+                campusName = meData.campus[0].name || '';
+              }
+              
+              await chrome.storage.local.set({ userAvatar, userCampus: campusName });
+            }
+          } catch (meErr) {
+            console.error("Failed to fetch /v2/me during login:", meErr);
+          }
+
+          await refreshAllData();
+          resolve({ status: "success" });
+        } catch (e) {
+          console.error("OAuth Error:", e);
+          resolve({ status: "error", error: e.message });
+        }
+      }
+    );
+  });
+}
+
 async function getValidToken() {
-  if (token && tokenExpire > (Date.now() / 1000)) {
-    return token;
+  const data = await chrome.storage.local.get(['accessToken', 'refreshToken', 'tokenExpire']);
+  
+  if (data.accessToken && data.tokenExpire > (Date.now() / 1000)) {
+    return data.accessToken;
   }
 
-  const settings = await chrome.storage.local.get(['apiUid', 'apiSecret']);
-  if (!settings.apiUid || !settings.apiSecret) {
-    console.warn("UID ou Secret manquant.");
-    return null;
-  }
+  if (data.refreshToken) {
+    const { clientId, clientSecret } = await chrome.storage.local.get(['clientId', 'clientSecret']);
+    if (!clientId || !clientSecret) return null;
 
-  try {
-    const res = await fetch('https://api.intra.42.fr/oauth/token', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        grant_type: 'client_credentials',
-        client_id: settings.apiUid,
-        client_secret: settings.apiSecret
-      })
-    });
+    try {
+      const res = await fetch('https://api.intra.42.fr/oauth/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          grant_type: 'refresh_token',
+          client_id: clientId,
+          client_secret: clientSecret,
+          refresh_token: data.refreshToken
+        })
+      });
 
-    if (!res.ok) {
-      const errText = await res.text();
-      console.error("Token API Error Status:", res.status, errText);
-      return null;
+      if (res.ok) {
+        const tokenData = await res.json();
+        const expire = (Date.now() / 1000) + tokenData.expires_in - 60;
+        await chrome.storage.local.set({
+          accessToken: tokenData.access_token,
+          refreshToken: tokenData.refresh_token,
+          tokenExpire: expire
+        });
+        return tokenData.access_token;
+      } else {
+        console.warn("Refresh token failed, user must log in again.");
+        // We could clear auth data here
+      }
+    } catch(e) {
+      console.error("Token refresh request failed", e);
     }
-
-    const data = await res.json();
-    if (data.access_token) {
-      token = data.access_token;
-      tokenExpire = (Date.now() / 1000) + data.expires_in - 60; // 1 min margin
-      return token;
-    } else {
-      console.error("Token API Error:", data);
-    }
-  } catch (error) {
-    console.error("Erreur de récupération du token:", error);
   }
+  
   return null;
 }
 
@@ -180,9 +280,41 @@ async function refreshAllData() {
     }
     const stats = await statsRes.json();
     
+    // Store user avatar & campus from stats (so popup always has them)
+    if (stats && !stats.error) {
+      let userAvatar = null;
+      if (stats.image && stats.image.versions && stats.image.versions.small) {
+        userAvatar = stats.image.versions.small;
+      } else if (stats.image && stats.image.link) {
+        userAvatar = stats.image.link;
+      }
+      let campusName = '';
+      if (stats.campus && Array.isArray(stats.campus) && stats.campus.length > 0) {
+        campusName = stats.campus[0].name || '';
+      }
+      await chrome.storage.local.set({ userAvatar, userCampus: campusName });
+    }
+    // 2bis. Fetch Coalition
+    const coalRes = await fetch(`https://api.intra.42.fr/v2/users/${username}/coalitions`, {
+      headers: { 'Authorization': `Bearer ${currentToken}` }
+    }).catch(e => null);
+    
+    let userCoalition = null;
+    if (coalRes && coalRes.ok) {
+      try {
+        const coalData = await coalRes.json();
+        if (Array.isArray(coalData) && coalData.length > 0) {
+          userCoalition = coalData[0]; // Get primary coalition
+        }
+      } catch(e) {}
+    }
+
     // Load old cache to fallback if API is rate limited
-    const currentCache = await chrome.storage.local.get(['cachedFriends']);
+    const currentCache = await chrome.storage.local.get(['cachedFriends', 'friendAvatars', 'enableFriendNotifs', 'notifFriends']);
     const oldFriendsStats = currentCache.cachedFriends || {};
+    const friendAvatars = currentCache.friendAvatars || {};
+    const enableNotifs = currentCache.enableFriendNotifs || false;
+    const notifFriends = currentCache.notifFriends || [];
 
     // 3. Update friends online count
     let onlineFriends = 0;
@@ -200,18 +332,27 @@ async function refreshAllData() {
         await chrome.storage.local.set({ cachedFriends: friendsStats });
 
         try {
-          // Sleep to respect 42 API rate limit (~2 req/s max, we do exactly 2 reqs per 0.6s)
+          // Sleep to respect 42 API rate limit
           await new Promise(r => setTimeout(r, 600));
 
-          // Fire both requests concurrently
-          const [friendLocsRes, friendProfileRes] = await Promise.all([
-            fetch(`https://api.intra.42.fr/v2/users/${friend}/locations?range[begin_at]=${start},${end}&per_page=100`, {
+          // Check if we need to re-fetch the friend's profile (avatar)
+          const cachedAvatar = friendAvatars[friend];
+          const avatarFresh = cachedAvatar && cachedAvatar.fetchedAt && (Date.now() - cachedAvatar.fetchedAt < 86400000); // 24h
+
+          let friendProfilePromise = null;
+          if (!avatarFresh) {
+            friendProfilePromise = fetch(`https://api.intra.42.fr/v2/users/${friend}`, {
               headers: { 'Authorization': `Bearer ${currentToken}` }
-            }).catch(e => null),
-            fetch(`https://api.intra.42.fr/v2/users/${friend}`, {
-              headers: { 'Authorization': `Bearer ${currentToken}` }
-            }).catch(e => null)
-          ]);
+            }).catch(e => null);
+          }
+
+          // Always fetch locations for online status
+          const friendLocsRes = await fetch(`https://api.intra.42.fr/v2/users/${friend}/locations?range[begin_at]=${start},${end}&per_page=100`, {
+            headers: { 'Authorization': `Bearer ${currentToken}` }
+          }).catch(e => null);
+
+          // Wait for profile only if we launched it
+          const friendProfileRes = friendProfilePromise ? await friendProfilePromise : null;
 
           if (!friendLocsRes || !friendLocsRes.ok) {
             console.warn(`Could not fetch locs for ${friend}, fallback to cache`);
@@ -232,10 +373,10 @@ async function refreshAllData() {
               friendTotalMs += ((l.end_at ? new Date(l.end_at) : new Date()) - new Date(l.begin_at));
             });
           }
-          const activeSession = Array.isArray(friendLocs) && friendLocs.find(l => l.end_at === null);
+          const activeFriendSession = Array.isArray(friendLocs) && friendLocs.find(l => l.end_at === null);
           
-          // Récupération du profil de l'ami (pour la photo)
-          let avatarUrl = null;
+          // Avatar: use fresh profile data or cache
+          let avatarUrl = cachedAvatar ? cachedAvatar.url : null;
           if (friendProfileRes && friendProfileRes.ok) {
             try {
               const friendProfile = await friendProfileRes.json();
@@ -244,15 +385,35 @@ async function refreshAllData() {
               } else if (friendProfile && friendProfile.image && friendProfile.image.link) {
                 avatarUrl = friendProfile.image.link;
               }
+              friendAvatars[friend] = { url: avatarUrl, fetchedAt: Date.now() };
             } catch(e) { console.warn("Error parsing profile info", friend); }
           }
 
+          // Detect online transition for notifications
+          const wasOffline = !oldFriendsStats[friend] || !oldFriendsStats[friend].active;
+          const isNowOnline = !!activeFriendSession;
+
           friendsStats[friend] = { 
-            active: activeSession ? activeSession.host : null, 
+            active: activeFriendSession ? activeFriendSession.host : null, 
             totalMs: friendTotalMs,
             avatar: avatarUrl 
           };
-          if (activeSession) onlineFriends++;
+          if (activeFriendSession) onlineFriends++;
+
+          // Send notification if friend just came online
+          if (wasOffline && isNowOnline && enableNotifs && notifFriends.includes(friend)) {
+            try {
+              chrome.notifications.create(`friend-online-${friend}-${Date.now()}`, {
+                type: "basic",
+                iconUrl: avatarUrl || "icon128.png",
+                title: chrome.i18n.getMessage("notifTitle") || "42 Logtime",
+                message: chrome.i18n.getMessage("notifFriendOnline", [friend, activeFriendSession.host]) || `${friend} just connected!`
+              });
+            } catch(notifErr) {
+              console.warn("Failed to send notification for", friend, notifErr);
+            }
+          }
+
           await chrome.storage.local.set({ cachedFriends: friendsStats });
         } catch(e) { 
           console.warn("Error API friend", friend); 
@@ -280,7 +441,9 @@ async function refreshAllData() {
     await chrome.storage.local.set({
       cachedLocations: Array.isArray(locs) ? locs : [],
       cachedStats: stats && !stats.error ? stats : null,
+      cachedCoalition: userCoalition,
       cachedFriends: friendsStats,
+      friendAvatars: friendAvatars,
       lastRefresh: Date.now(),
       clusterTimes: clusterTimes,
       lastProcessedLocationId: maxId,

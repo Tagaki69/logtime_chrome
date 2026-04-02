@@ -2,63 +2,85 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
-  <title>Options - 42 Logtime</title>
+  <title data-i18n="optionsTitle">Options - 42 Logtime</title>
   <link rel="stylesheet" href="options.css">
 </head>
 <body>
   <div class="container">
-    <h1>Configuration 42 Logtime</h1>
+    <h1 data-i18n="optionsTitle">Configuration 42 Logtime</h1>
     
     <div class="section">
-      <h2>🔑 Identification API 42</h2>
-      <p class="desc">Tu dois créer une application OAuth sur l'Intra 42 pour obtenir ces clés (Scopes: public).</p>
+      <h2 data-i18n="optionsAPI">🔑 Configuration API 42</h2>
+      <p class="desc" id="apiHint" data-i18n="optionsAPIHint">Crée ton app sur Intra > Settings > Apps. Redirect URI : ...</p>
       <div class="input-group">
-        <label for="username">Ton Login</label>
-        <input type="text" id="username" placeholder="ex: papilaz">
+        <label for="usernameInput" data-i18n="optionsLogin">Login 42</label>
+        <input type="text" id="usernameInput" placeholder="ex: norminet">
       </div>
       <div class="input-group">
-        <label for="uid">API UID</label>
-        <input type="text" id="uid" placeholder="u-s4t2ud...">
+        <label for="clientId" data-i18n="optionsClientId">Client ID (UID)</label>
+        <input type="text" id="clientId" placeholder="u-s4t2ud-...">
       </div>
       <div class="input-group">
-        <label for="secret">API Secret</label>
-        <input type="password" id="secret" placeholder="s-s4t2ud...">
+        <label for="clientSecret" data-i18n="optionsClientSecret">Client Secret</label>
+        <input type="password" id="clientSecret" placeholder="s-s4t2ud-...">
+      </div>
+      <div class="input-group" style="margin-top: 15px;">
+        <button id="btnConnectAPI" class="primary-btn" style="width: 100%;" data-i18n="logIn">➔ Se connecter à l'Intra</button>
       </div>
     </div>
 
     <div class="section">
-      <h2>⏱️ Configuration Logtime</h2>
+      <h2 data-i18n="optionsLogtimeBH">⏱️ Configuration Logtime &amp; Blackhole</h2>
       <div class="input-group">
-        <label for="giftDays">Jours Offerts (Gift Days) <br><small>1 jour = -7h sur l'objectif</small></label>
+        <label for="giftDays"><span data-i18n="optionsGiftDays">Jours Offerts (Gift Days)</span> <br><small data-i18n="optionsGiftDaysHint">1 jour = -7h sur l'objectif</small></label>
         <input type="number" id="giftDays" min="0" max="31" value="0">
       </div>
+      <div class="input-group">
+        <label for="freezeDays"><span data-i18n="optionsFreezeDays">Jours de Freeze</span> <br><small data-i18n="optionsFreezeDaysHint">Jours de rab ajoutés au Blackhole</small></label>
+        <input type="number" id="freezeDays" min="0" value="0">
+      </div>
+      <div class="input-group">
+        <label class="day-checkbox">
+          <input type="checkbox" id="enableCoalitionTheme" checked>
+          <span data-i18n="optionsCoalitionTheme">Activer le fond dynamique de ta Coalition</span>
+        </label>
+      </div>
     </div>
 
     <div class="section">
-      <h2>📅 Mon Planning Type</h2>
-      <p class="desc">Coche les jours où tu prévois de travailler pour calculer ton objectif quotidien.</p>
+      <h2 data-i18n="optionsPlanning">📅 Mon Planning Type</h2>
+      <p class="desc" data-i18n="optionsPlanningDesc">Coche les jours où tu prévois de travailler pour calculer ton objectif quotidien.</p>
       <div class="days-grid" id="planningDays">
         <!-- JS va remplir ça -->
       </div>
     </div>
 
     <div class="section">
-      <h2>👥 Gestion des Amis</h2>
+      <h2 data-i18n="optionsFriends">👥 Gestion des Amis</h2>
       <div class="input-group row">
         <input type="text" id="newFriend" placeholder="ex: norminet">
-        <button id="addFriendBtn">Ajouter</button>
+        <button id="addFriendBtn" data-i18n="optionsAddFriend">Ajouter</button>
       </div>
       <ul id="friendsList" class="friends-list">
         <!-- JS va remplir ça -->
       </ul>
     </div>
 
+    <div class="section">
+      <h2 data-i18n="optionsNotifications">🔔 Notifications</h2>
+      <div class="input-group">
+        <label class="day-checkbox">
+          <input type="checkbox" id="enableFriendNotifs">
+          <span data-i18n="optionsEnableNotifs">Activer les notifications de connexion des amis</span>
+        </label>
+      </div>
+      <p class="desc" data-i18n="optionsNotifHint">Active la cloche 🔔 à côté d'un ami pour être notifié quand il se connecte.</p>
+    </div>
 
     <div class="actions">
-      <button id="saveBtn" class="primary">Sauvegarder les paramètres</button>
       <span id="statusMessage" class="status-msg"></span>
     </div>
   </div>
-  <script src="options.js"></script>
+  <script type="module" src="options.js"></script>
 </body>
 </html>

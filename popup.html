@@ -6,39 +6,50 @@
 </head>
 <body>
   <div class="header">
+    <div id="userBanner" class="user-banner" style="display:none;">
+      <img id="userAvatar" class="user-avatar" src="" alt="">
+      <div class="user-info">
+        <span id="userLogin" class="user-login"></span>
+        <div id="levelContainer" class="level-container" style="display:none;">
+          <div class="level-label" id="levelText">Level - %</div>
+          <div class="level-bar-bg">
+            <div class="level-bar-fill" id="levelFill"></div>
+          </div>
+        </div>
+      </div>
+    </div>
     <div class="main-time" id="mainTime">...</div>
     <div class="progress-bar-container">
       <div class="progress-bar" id="progressBar" style="width: 0%;"></div>
     </div>
     <div class="time-details">
       <span id="ratioTime">0h / 0h</span>
-      <span class="warning-text" id="targetDaily">Cible/J: -</span>
+      <span class="warning-text" id="targetDaily" data-i18n="dailyTargetPrefix">Cible/J: -</span>
     </div>
   </div>
 
   <div class="stats-grid">
-    <div class="stat-box"><span class="label">Aujourd'hui</span><span class="value" id="todayLogtime">-</span></div>
-    <div class="stat-box"><span class="label">Wallet</span><span class="value" id="wallet">-</span></div>
-    <div class="stat-box"><span class="label">Eval</span><span class="value" id="evalPoints">-</span></div>
+    <div class="stat-box"><span class="label" data-i18n="today">Aujourd'hui</span><span class="value" id="todayLogtime">-</span></div>
+    <div class="stat-box"><span class="label" data-i18n="wallet">Wallet</span><span class="value" id="wallet">-</span></div>
+    <div class="stat-box"><span class="label" data-i18n="eval">Eval</span><span class="value" id="evalPoints">-</span></div>
+    <div class="stat-box"><span class="label" data-i18n="blackhole">Blackhole</span><span class="value" id="blackholeDate" style="color: #f39c12;">-</span></div>
   </div>
 
-
-
   <div class="section-title flex-between">
-    <span id="friendsTitle">FRIENDS STATUS</span>
+    <span id="friendsTitle" data-i18n="friendsStatus">FRIENDS STATUS</span>
     <div class="actions">
-      <button id="btnMatrix" title="Matrix">🟢</button>
-      <button id="btnCalendar" title="Mon Calendrier">📅</button>
-      <button id="btnFriends" title="Amis" style="display:none;">👥</button>
-      <button id="btnProfile" title="Mon Profil">👤</button>
-      <button id="btnRefresh" title="Rafraîchir">🔄</button>
-      <button id="btnSettings" title="Paramètres">⚙️</button>
+      <button id="btnMatrix" data-i18n-tooltip="tooltipMatrix" data-tooltip="Matrix">🟢</button>
+      <button id="btnCalendar" data-i18n-tooltip="tooltipCalendar" data-tooltip="Mon Calendrier">📅</button>
+      <button id="btnFriends" data-i18n-tooltip="tooltipFriends" data-tooltip="Amis" style="display:none;">👥</button>
+      <button id="btnProfile" data-i18n-tooltip="tooltipProfile" data-tooltip="Mon Profil">👤</button>
+      <button id="btnRefresh" data-i18n-tooltip="tooltipRefresh" data-tooltip="Rafraîchir">🔄</button>
+      <button id="btnSettings" data-i18n-tooltip="tooltipSettings" data-tooltip="Paramètres">⚙️</button>
     </div>
   </div>
 
   <div id="friendsView" class="view-panel">
     <div class="friends-list" id="friendsBox">
-      <div class="loading">Chargement...</div>
+      <div class="loading" data-i18n="loading">Chargement...</div>
     </div>
   </div>
 
@@ -48,6 +59,35 @@
     </div>
   </div>
 
-  <script src="popup.js"></script>
+  <div id="projectTracker" style="display:none; text-align: center; font-size: 11px; padding: 10px; background: #111; margin-top: auto; border-top: 1px solid #0f3460;">
+    <span style="color:#a8a8b3" data-i18n="currentProject">Projet en cours :</span> <span id="currentProjectName" style="color:#00b8ca; font-weight:bold;">-</span>
+    <div id="currentProjectDuration" style="font-size: 10px; color: #f39c12; margin-top: 2px;"></div>
+  </div>
+
+  <div id="loginOverlay" class="login-overlay" style="display: none;">
+    <div class="login-content">
+      <h2 data-i18n="notLoggedIn">Not logged in on Intra</h2>
+      <button id="btnLoginIntra" data-i18n="logIn">➔ Log in</button>
+      <div class="logo-box">
+        <span class="logo-text">LOGTIME <span class="white-text">42</span></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Friend row template for efficient DOM construction -->
+  <template id="friend-row-template">
+    <div class="friend-row">
+      <div class="friend-avatar"></div>
+      <div class="friend-info">
+        <span class="friend-name"></span>
+        <span class="friend-logtime"></span>
+      </div>
+      <div class="friend-status"></div>
+    </div>
+  </template>
+
+  <div id="customTooltip" class="custom-tooltip"></div>
+
+  <script type="module" src="popup.js"></script>
 </body>
 </html>
