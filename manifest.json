@@ -13,7 +13,10 @@
   ],
   "host_permissions": [
     "*://api.intra.42.fr/*",
-    "https://as2pik.fr/*"
+    "https://as2pik.fr/*",
+    "https://profile.intra.42.fr/*",
+    "https://profile-v3.intra.42.fr/*",
+    "https://translate.intra.42.fr/*"
   ],
   "action": {
     "default_popup": "popup.html",
@@ -41,6 +44,12 @@
       "matches": ["*://matrix.42lyon.fr/*"],
       "js": ["content-script.js"],
       "run_at": "document_idle"
+    },
+    {
+      "matches": ["*://profile.intra.42.fr/*", "*://profile-v3.intra.42.fr/*"],
+      "js": ["profile-content-script.js"],
+      "run_at": "document_idle"
     }
   ]
+
 }

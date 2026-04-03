@@ -73,18 +73,26 @@ export function renderStats(cachedStats, freezeDays) {
 }
 
 /**
- * Calculates logtime from raw location data.
+ * Calculates logtime from raw location data (Filters for current month).
  * @param {Array} locations - Array of location objects ({ begin_at, end_at })
  * @returns {{ totalMs: number, todayMs: number, daysCache: Object }}
  */
 export function calculateLogtime(locations) {
   let totalMs = 0;
   let todayMs = 0;
-  const todayStr = new Date().toDateString();
+  const now = new Date();
+  const todayStr = now.toDateString();
+  const currentMonth = now.getMonth();
+  const currentYear = now.getFullYear();
   const daysCache = {};
 
   (locations || []).forEach(l => {
     const s = new Date(l.begin_at);
+    // Filter: only current month and year
+    if (s.getMonth() !== currentMonth || s.getFullYear() !== currentYear) {
+      return;
+    }
+
     const e = l.end_at ? new Date(l.end_at) : new Date();
     const dur = e - s;
     totalMs += dur;

@@ -155,20 +155,37 @@ async function refreshAllData() {
   const storageData = await chrome.storage.local.get(['clusterTimes', 'lastProcessedLocationId']);
   let clusterTimes = storageData.clusterTimes || {};
   let lastProcessedLocationId = storageData.lastProcessedLocationId || 0;
-  const isFirstFetch = (lastProcessedLocationId === 0);
-
   const now = new Date();
+  // To keep the profile calendar accurate, we want at least 12 months of data.
+  const twelveMonthsAgo = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
+  
+  // Cache check: see if we have enough history
+  const cacheInfo = await chrome.storage.local.get(['cachedLocations', 'lastProcessedLocationId']);
+  const cachedLocs = cacheInfo.cachedLocations || [];
+  const lastProcessedId = cacheInfo.lastProcessedLocationId || 0;
+  
+  // Find oldest location in cache
+  let oldestDate = now.getTime();
+  if (cachedLocs.length > 0) {
+    oldestDate = new Date(cachedLocs[cachedLocs.length-1].begin_at).getTime();
+  }
+  
+  // If no cache or oldest location is too recent (e.g. less than 6 months old), we fetch more
+  const needsHistory = (oldestDate > new Date(now.getTime() - (180 * 24 * 60 * 60 * 1000)).getTime());
+  const isFirstFetch = (lastProcessedId === 0) || needsHistory;
+
   let startObj;
   if (isFirstFetch) {
-    // Premier lancement : on remonte sur 1 an
-    startObj = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
-    console.log("🔄 Premier fetch Matrix : récupération de 1 an d'historique...");
+    // On remonte sur 1 an si on n'a pas assez d'historique
+    startObj = twelveMonthsAgo;
+    console.log("🔄 Fetch approfondi Logtime : récupération de 1 an d'historique...");
   } else {
-    // Refresh normal : juste le mois en cours
-    startObj = new Date(now.getFullYear(), now.getMonth(), 1);
+    // Refresh normal : on récupère les 45 derniers jours pour assurer la continuité
+    startObj = new Date(now.getTime() - (45 * 24 * 60 * 60 * 1000));
   }
-  // Fin : On injecte demain (Now + 24h) pour s'assurer d'inclure toutes les sessions débutées aujourd'hui
+  // Fin : On injecte demain (Now + 24h)
   const endObj = new Date(now.getTime() + 86400000);
+
   
   const start = startObj.toISOString();
   const end = endObj.toISOString();
@@ -199,10 +216,44 @@ async function refreshAllData() {
         hasMore = false;
       }
     }
-    const locs = allLocs;
+    const newLocs = allLocs;
     if (isFirstFetch) {
-      console.log(`✅ Premier fetch terminé : ${locs.length} sessions récupérées sur 1 an.`);
+      console.log(`✅ Premier fetch terminé : ${newLocs.length} sessions récupérées sur 1 an.`);
     }
+
+    // --- Merger avec le cache existant pour garder 12 mois de data ---
+    let cachedLocations = (await chrome.storage.local.get(['cachedLocations'])).cachedLocations || [];
+    
+    // Créer une map par ID pour dédoublonner
+    const locMap = {};
+    cachedLocations.forEach(l => locMap[l.id] = l);
+    newLocs.forEach(l => locMap[l.id] = l);
+    
+    // Re-transformer en tableau et filtrer pour garder seulement les 12 derniers mois
+    const twelveMonthsAgo = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate()).getTime();
+    let mergedLocs = Object.values(locMap).filter(l => {
+      const begin = new Date(l.begin_at).getTime();
+      return begin >= twelveMonthsAgo;
+    });
+
+    // Trier par date décroissante
+    mergedLocs.sort((a, b) => new Date(b.begin_at) - new Date(a.begin_at));
+
+    // --- Calculer le résumé mensuel pour le Profile ---
+    const monthlyLogtime = {}; // "Jan": minutes
+    const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    
+    mergedLocs.forEach(l => {
+      const d = new Date(l.begin_at);
+      const monthLabel = MONTH_NAMES[d.getMonth()];
+      const duration = (l.end_at ? new Date(l.end_at) : new Date()) - new Date(l.begin_at);
+      const mins = Math.floor(duration / 60000);
+      monthlyLogtime[monthLabel] = (monthlyLogtime[monthLabel] || 0) + mins;
+    });
+    
+    await chrome.storage.local.set({ monthlyLogtime });
+    const locs = mergedLocs; 
+
 
     // --- Matrix Live Tracking ---
     let activeSession = null;
@@ -265,7 +316,21 @@ async function refreshAllData() {
       } catch(e) {}
     }
 
-    // Load old cache to fallback if API is rate limited
+    // --- IMMEDIATE STORAGE OF PERSONAL DATA ---
+    // We store this immediately so the Popup can update its main UI 
+    // without waiting for the slow friends-refresh loop.
+    await chrome.storage.local.set({
+      cachedLocations: locs,
+      cachedStats: stats && !stats.error ? stats : null,
+      cachedCoalition: userCoalition,
+      monthlyLogtime: monthlyLogtime,
+      lastRefresh: Date.now(),
+      clusterTimes: clusterTimes,
+      lastProcessedLocationId: maxId,
+      activeSession: activeSession
+    });
+
+    // Load old cache to fallback if API is rate limited for friends
     const currentCache = await chrome.storage.local.get(['cachedFriends', 'friendAvatars', 'enableFriendNotifs', 'notifFriends']);
     const oldFriendsStats = currentCache.cachedFriends || {};
     const friendAvatars = currentCache.friendAvatars || {};
@@ -302,10 +367,14 @@ async function refreshAllData() {
             }).catch(e => null);
           }
 
-          // Always fetch locations for online status
-          const friendLocsRes = await fetch(`https://api.intra.42.fr/v2/users/${friend}/locations?range[begin_at]=${start},${end}&per_page=100`, {
+          // Friends: we only need the current month's logtime for the popup.
+          const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+
+          // Always fetch locations for online status + current month logtime
+          const friendLocsRes = await fetch(`https://api.intra.42.fr/v2/users/${friend}/locations?range[begin_at]=${monthStart},${end}&per_page=100`, {
             headers: { 'Authorization': `Bearer ${currentToken}` }
           }).catch(e => null);
+
 
           // Wait for profile only if we launched it
           const friendProfileRes = friendProfilePromise ? await friendProfilePromise : null;
@@ -324,15 +393,24 @@ async function refreshAllData() {
           
           const friendLocs = await friendLocsRes.json();
           let friendTotalMs = 0;
+          const currentMonth = now.getMonth();
+          const currentYear = now.getFullYear();
+
           if (Array.isArray(friendLocs)) {
             friendLocs.forEach(l => {
-              friendTotalMs += ((l.end_at ? new Date(l.end_at) : new Date()) - new Date(l.begin_at));
+              const s = new Date(l.begin_at);
+              // Safety filter (redundant with API range but good for crossing boundaries)
+              if (s.getMonth() === currentMonth && s.getFullYear() === currentYear) {
+                friendTotalMs += ((l.end_at ? new Date(l.end_at) : new Date()) - s);
+              }
             });
           }
+
           const activeFriendSession = Array.isArray(friendLocs) && friendLocs.find(l => l.end_at === null);
           
           // Avatar: use fresh profile data or cache
           let avatarUrl = cachedAvatar ? cachedAvatar.url : null;
+          let level = (oldFriendsStats[friend] && oldFriendsStats[friend].level) ? oldFriendsStats[friend].level : 0;
           if (friendProfileRes && friendProfileRes.ok) {
             try {
               const friendProfile = await friendProfileRes.json();
@@ -340,6 +418,11 @@ async function refreshAllData() {
                 avatarUrl = friendProfile.image.versions.small;
               } else if (friendProfile && friendProfile.image && friendProfile.image.link) {
                 avatarUrl = friendProfile.image.link;
+              }
+              // Get level from 42cursus
+              if (friendProfile.cursus_users) {
+                const cursus = friendProfile.cursus_users.find(cu => cu.cursus.id === 21 || cu.cursus.name === "42cursus");
+                if (cursus) level = cursus.level;
               }
               friendAvatars[friend] = { url: avatarUrl, fetchedAt: Date.now() };
             } catch(e) { console.warn("Error parsing profile info", friend); }
@@ -352,9 +435,11 @@ async function refreshAllData() {
           friendsStats[friend] = { 
             active: activeFriendSession ? activeFriendSession.host : null, 
             totalMs: friendTotalMs,
-            avatar: avatarUrl 
+            avatar: avatarUrl,
+            level: level
           };
           if (activeFriendSession) onlineFriends++;
+
 
           // Send notification if friend just came online
           if (wasOffline && isNowOnline && enableNotifs && notifFriends.includes(friend)) {
@@ -393,18 +478,12 @@ async function refreshAllData() {
       chrome.action.setBadgeBackgroundColor({ color: '#636e72' });
     }
 
-    // Cache everything
+    // Final Sync of all data
     await chrome.storage.local.set({
-      cachedLocations: Array.isArray(locs) ? locs : [],
-      cachedStats: stats && !stats.error ? stats : null,
-      cachedCoalition: userCoalition,
       cachedFriends: friendsStats,
-      friendAvatars: friendAvatars,
-      lastRefresh: Date.now(),
-      clusterTimes: clusterTimes,
-      lastProcessedLocationId: maxId,
-      activeSession: activeSession
+      friendAvatars: friendAvatars
     });
+
 
     return true;
 

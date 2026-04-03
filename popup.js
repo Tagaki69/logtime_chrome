@@ -87,11 +87,17 @@ document.addEventListener("DOMContentLoaded", async () => {
     document.getElementById("friendsTitle").textContent = t("friendsStatus");
   });
 
-  // Listen for progressive friend updates
+  // Listen for progressive updates
   chrome.storage.onChanged.addListener((changes, area) => {
-    if (area === 'local' && changes.cachedFriends) {
-      renderFriends(changes.cachedFriends.newValue);
-      initTooltips();
+    if (area === 'local') {
+      if (changes.cachedFriends) {
+        renderFriends(changes.cachedFriends.newValue);
+        initTooltips();
+      }
+      // Reactive UI: update personal stats as soon as they arrive in storage
+      if (changes.cachedLocations || changes.cachedStats) {
+        loadData();
+      }
     }
   });
 
